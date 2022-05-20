@@ -1,0 +1,125 @@
+---
+title: "CUNY 608 Assignment 1"
+author: "Eric Hirsch"
+date: "1/29/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Principles of Data Visualization and Introduction to ggplot2**
+
+I have provided you with data about the 5,000 fastest growing companies in the US, as compiled by Inc. magazine. lets read this in:
+
+```{r}
+
+inc <- read.csv("https://raw.githubusercontent.com/charleyferrari/CUNY_DATA_608/master/module1/Data/inc5000_data.csv", header= TRUE)
+
+```
+
+And lets preview this data:
+
+```{r}
+library(skimr)
+library(tidyverse)
+
+head(inc)
+summary(inc)
+
+```
+
+Think a bit on what these summaries mean. Use the space below to add some more relevant non-visual exploratory information you think helps you understand this data:
+
+```{r}
+
+dim(inc)
+skim(inc)
+str(inc)
+
+```
+
+```{r}
+library(methods)
+   
+EH_Theme <- setRefClass("EH_Theme", fields = list(FillColor = "character", LabelColor='character', ThirdColor="character"), methods = list(
+                       my_theme = function()
+{
+     theme(plot.title = element_text(size = 14, face="bold"), 
+         panel.background = element_blank(),
+         plot.background = element_blank(),
+         panel.grid.major.x = element_blank() ,
+         panel.grid.major.y = element_blank(),
+         axis.text = element_text(colour = LabelColor, size = 12),
+         axis.title = element_text(size = 16),
+         axis.title.y = element_text(vjust=0),
+         axis.title.x = element_text(vjust=-1),
+         axis.ticks.x = element_blank())
+}
+))
+
+ThisTheme <- EH_Theme(FillColor="slategray2", LabelColor="gray18", ThirdColor="darkslateblue")
+
+```
+
+## Question 1
+
+Create a graph that shows the distribution of companies in the dataset by State (ie how many are in each state). There are a lot of States, so consider which axis you should use. This visualization is ultimately going to be consumed on a 'portrait' oriented screen (ie taller than wide), which should further guide your layout choices.
+
+```{r fig.width=12, fig.height=10}
+
+ggplot(inc, aes(fct_infreq(State))) +
+  geom_bar(fill=ThisTheme$FillColor, width=.2) +
+  ggtitle("States by Number of Companies") +
+  xlab("State") +
+  ylab("Number of Companies") +
+  geom_text(aes(label=..count..), stat="count", size=4, 
+              hjust=-0.2, color=ThisTheme$ThirdColor) +
+  ThisTheme$my_theme() +
+  coord_flip()
+```
+
+## Quesiton 2
+
+Lets dig in on the state with the 3rd most companies in the data set. Imagine you work for the state and are interested in how many people are employed by companies in different industries. Create a plot that shows the average and/or median employment by industry for companies in this state (only use cases with full data, use R's `complete.cases()` function.) In addition to this, your graph should show how variable the ranges are, and you should deal with outliers.
+
+```{r fig.width=12, fig.height=10}
+
+inc_ny <- inc %>%
+  filter(State == "NY")
+
+inc_ny <- inc_ny[complete.cases(inc_ny), ]
+
+ggplot(inc_ny, aes(x=reorder(Industry, Employees),  y=Employees)) + 
+    geom_boxplot(width=.5, fill=ThisTheme$FillColor, outlier.colour=ThisTheme$ThirdColor) +
+    coord_flip(ylim = c(0, 1500), expand = TRUE) +   
+    scale_y_continuous(labels = scales::comma,
+                       breaks = seq(0, 1500, by = 150)) +
+    xlab("Industry") +
+    ylab("Employees") +
+    ggtitle("Employment by Industry for Fastest Growing Companies in NY") + 
+  ThisTheme$my_theme()
+
+```
+
+## Question 3
+
+Now imagine you work for an investor and want to see which industries generate the most revenue per employee. Create a chart that makes this information clear. Once again, the distribution per industry should be shown.
+
+```{r fig.width=12, fig.height=10}
+inc_ny_rev <- inc_ny %>%
+  group_by(Industry) %>%
+  summarize(RevPerEmp = (sum(Revenue)/sum(Employees)/1000), labelx = round(RevPerEmp,0))
+  
+ggplot(inc_ny_rev, aes(reorder(Industry, RevPerEmp), RevPerEmp)) +
+  geom_col(fill=ThisTheme$FillColor, width=.3) +
+  ggtitle("Employees Per Revenue By Industry in NY") +
+  xlab("Industry") +
+  ylab("Revenue per Employee in Thousands") +
+  ThisTheme$my_theme() +
+  geom_text(aes(label = labelx), size = 4 , hjust = -.2, color=ThisTheme$ThirdColor, fontface="bold") +
+  coord_flip()
+
+```
+
